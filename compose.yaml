@@ -1,0 +1,14 @@
+# docker compose -f compose.yaml up -d
+# docker compose -f compose.yaml down
+# docker compose -f compose.yaml logs
+name: cpp
+services:
+  bot:
+    build:
+      context: ./
+      dockerfile: ./Dockerfile
+    restart: on-failure:3
+    volumes:
+      - ./:/work  # Mounting to /app so that the 'air' CLI tool hot reload
+    stdin_open: true
+    tty: true
