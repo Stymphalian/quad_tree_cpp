@@ -30,8 +30,6 @@ const int MAX_QUAD_TREE_DEPTH = 8;
 const bool USE_QUAD_TREE = true;
 
 
-
-
 // const int WORLD_WIDTH = 200;
 // const int WORLD_HEIGHT = 200;
 // const int NUMBER_SPRITES = 10;
@@ -40,34 +38,6 @@ const bool USE_QUAD_TREE = true;
 
 using namespace std;
 typedef std::chrono::high_resolution_clock rclock;
-
-typedef int Identifier;
-Identifier getNextId()
-{
-    static Identifier Id = 0;
-    return ++Id;
-}
-
-class Identifiable
-{
-public:
-    Identifier Id;
-    Identifiable() : Id(getNextId()) {}
-    ~Identifiable() = default;
-};
-
-class Point : public Identifiable
-{
-public:
-    int x;
-    int y;
-    Point() : Identifiable(), x(0), y(0) {}
-    Point(Identifier id, int x, int y) : Identifiable(), x(x), y(y)
-    {
-        this->Id = id;
-    }
-    ~Point() = default;
-};
 
 class Rect
 {
@@ -105,12 +75,6 @@ public:
             r.R() > L() &&
             r.T() > B() &&
             r.B() < T());
-    }
-
-    bool Contains(const Point &p)
-    {
-        return (
-            p.x >= x && p.x <= w && p.y >= y && p.y <= h);
     }
 
     SDL_Rect ToSDL(Mat3 &transform)
@@ -342,7 +306,6 @@ struct QuadElement
     // int x1, y1, x2, y2;
 
     QuadElement(int id, Rect rect) : id(id), rect(rect) {}
-    QuadElement(Identifiable id, Rect rect) : id(id.Id), rect(rect) {}
 };
 
 // Represents an element node in the quadtree.
@@ -874,7 +837,6 @@ public:
 class Game
 {
 public:
-    vector<Point> points;
     int width;
     int height;
     Rect WorldBox;
