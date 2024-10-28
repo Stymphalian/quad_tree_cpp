@@ -24,15 +24,19 @@ public:
 
     // Returns the nth element.
     T& operator[](int n);
+    T* at(int n);
 
     // Returns the nth element.
     const T& operator[](int n) const;
 
 private:
-    union FreeElement
+    struct FreeElement
     {
         T element;
         int next;
+
+        FreeElement(T element) : element(element) {}
+        FreeElement(int next) : next(next) {}
     };
     std::vector<FreeElement> data;
     int first_free;
@@ -55,8 +59,8 @@ int FreeList<T>::insert(const T& element)
     }
     else
     {
-        FreeElement fe;
-        fe.element = element;
+        FreeElement fe(element);
+        // fe.element = element;
         data.push_back(fe);
         return static_cast<int>(data.size() - 1);
     }
@@ -86,6 +90,12 @@ template <class T>
 T& FreeList<T>::operator[](int n)
 {
     return data[n].element;
+}
+
+template <class T>
+T* FreeList<T>::at(int n)
+{
+    return &(data.at(n).element);
 }
 
 template <class T>
