@@ -11,6 +11,35 @@
 using namespace std;
 typedef std::chrono::high_resolution_clock rclock;
 
+struct QuadRect
+{
+    int mid_x;
+    int mid_y;
+    int half_w;
+    int half_h;
+    QuadRect() : mid_x(0), mid_y(0), half_w(0), half_h(0) {}
+    QuadRect(int mid_x, int mid_y, int half_w, int half_h) : mid_x(mid_x), mid_y(mid_y), half_w(half_w), half_h(half_h) {}
+
+    inline int W4() { return half_w >> 1; }
+    inline int H4() { return half_h >> 1; }
+
+    inline QuadRect TL() { return QuadRect(mid_x - W4(), mid_y + H4(), W4(), H4()); }
+    inline QuadRect TR() { return QuadRect(mid_x + W4(), mid_y + H4(), W4(), H4()); }
+    inline QuadRect BL() { return QuadRect(mid_x - W4(), mid_y - H4(), W4(), H4()); }
+    inline QuadRect BR() { return QuadRect(mid_x + W4(), mid_y - H4(), W4(), H4()); }
+
+    SDL_Rect ToSDL(Mat3 &transform)
+    {
+        Vec2 p = transform * Vec2(mid_x - half_w, mid_y + half_h);
+        SDL_Rect rect;
+        rect.x = (int)p.x;
+        rect.y = (int)p.y;
+        rect.w = half_w << 1;
+        rect.h = half_w << 1;
+        return rect;
+    }
+};
+
 struct QuadNode
 {
     // If a branch node then the points to the first child QuadNode,
@@ -65,10 +94,10 @@ struct QuadNode
     }
 
     QuadNode() : children(-1), count(-1) {}
-    inline int TR() { return children + 0; }
-    inline int TL() { return children + 1; }
-    inline int BL() { return children + 2; }
-    inline int BR() { return children + 3; }
+    inline int TL() { return (children + 0); }
+    inline int TR() { return (children + 1); }
+    inline int BL() { return (children + 2); }
+    inline int BR() { return (children + 3); }
 };
 
 // Represents an element in the quadtree.
@@ -103,7 +132,6 @@ struct QuadElementNode
     }
 };
 
-
 class QuadTree
 {
 public:
@@ -113,19 +141,19 @@ public:
     FreeList<QuadElement> Elements;
     FreeList<QuadElementNode> ElementNodes;
     FreeList<QuadNode> Nodes;
-    Rect Bounds;
+    // Rect Bounds;
+    QuadRect Bounds;
     int split_threshold = 3;
     int max_depth = 25;
 
-    using LeafCallbackFn = std::function<void(int quadNodeIndex, Rect &nodeRect, int depth)>;
-    using LeafCallbackWithTreeFn = std::function<void(QuadTree *tree, int quadNodeIndex, Rect &nodeRect, int depth)>;
+    using LeafCallbackFn = std::function<void(int quadNodeIndex, QuadRect nodeRect, int depth)>;
+    using LeafCallbackWithTreeFn = std::function<void(QuadTree *tree, int quadNodeIndex, QuadRect nodeRect, int depth)>;
     typedef void QuadTreeCallback(
         QuadTree *tree,
         void *user_data,
         int quadNodeIndex,
         Rect &nodeRect,
-        int depth
-    );
+        int depth);
 
     QuadTree();
     QuadTree(Rect bounds, int max_depth, int split_threshold);
@@ -149,12 +177,12 @@ public:
     void Clean();
 
 protected:
-    void InsertNode(int quadNodeIndex, Rect &nodeRect, int depth, int elementIndex);
+    void InsertNode(int quadNodeIndex, QuadRect nodeRect, int depth, int elementIndex);
     void FindLeaves(int quadNodeIndex,
-                    Rect &quadNodeRect,
+                    QuadRect quadNodeRect,
                     int depth,
                     Rect &target,
                     LeafCallbackFn leafCallbackFn);
-    void InsertLeafNode(int quadNodeIndex, Rect nodeRect, int depth, int elementIndex);
+    void InsertLeafNode(int quadNodeIndex, QuadRect nodeRect, int depth, int elementIndex);
     bool ShouldSplitNode(QuadNode &node);
 };

@@ -228,14 +228,14 @@ public:
             sprite.IsColliding = false;
         }
 
-        if (USE_QUAD_TREE)
-        {
-            QuadCollision();
-        }
-        else
-        {
-            BruteCollision();
-        }
+        // if (USE_QUAD_TREE)
+        // {
+        //     QuadCollision();
+        // }
+        // else
+        // {
+        //     BruteCollision();
+        // }
 
         // Update the physics
         auto start_time = rclock::now();
