@@ -99,6 +99,10 @@ public:
     {
         Add("quad_find_leaves", delta);
     }
+    void RecordQuadFindLeavesList(std::chrono::nanoseconds delta)
+    {
+        Add("quad_find_leaves_list", delta);
+    }
     void RecordQuadTreeInsertNode(std::chrono::nanoseconds delta)
     {
         Add("quad_tree_insert_node", delta);

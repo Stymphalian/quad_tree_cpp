@@ -13,8 +13,10 @@
 #include <iostream>
 #include <tuple>
 #include <cassert>
+#include <SDL_render.h>
 
 #include "jmath.h"
+#include "jquad.h"
 #include "metrics.h"
 #include "consts.h"
 
@@ -101,7 +103,7 @@ public:
 
     void Collides(Sprite *B)
     {
-        auto start_time = rclock::now();
+        // auto start_time = rclock::now();
         Sprite *A = this;
         Vec2 dir = (B->Position - A->Position).Normalize(); // A to B
         Vec2 rdir = dir * -1.0;
@@ -117,8 +119,8 @@ public:
         B->Velocity = comp_norm_b + comp_dir_a;
         A->Position = A->Position - dir;
         B->Position = B->Position - rdir;
-        auto end_time = rclock::now();
-        METRICS.RecordSpriteCollide(end_time - start_time);
+        // auto end_time = rclock::now();
+        // METRICS.RecordSpriteCollide(end_time - start_time);
     }
 };
 
@@ -150,7 +152,7 @@ public:
 
     void QuadCollision()
     {
-        auto start_time = rclock::now();
+        // auto start_time = rclock::now();
 
         // std::function<Sprite *(int id)> getDataFn = [&](int id) -> Sprite *
         // {
@@ -195,8 +197,8 @@ public:
         //     useDataFn
         // );
 
-        auto end_time = rclock::now();
-        METRICS.RecordQuadCollision(end_time - start_time);
+        // auto end_time = rclock::now();
+        // METRICS.RecordQuadCollision(end_time - start_time);
     }
 
     void BruteCollision()
@@ -238,28 +240,27 @@ public:
         // }
 
         // Update the physics
-        auto start_time = rclock::now();
+        // auto start_time = rclock::now();
         for (Sprite &sprite : Sprites)
         {
             sprite.Update(WorldBox, delta_ms);
         }
-        auto end_time = rclock::now();
-        METRICS.RecordSpriteUpdatePhyscis(end_time - start_time);
+        // auto end_time = rclock::now();
+        // METRICS.RecordSpriteUpdatePhyscis(end_time - start_time);
 
-        start_time = rclock::now();
+        // start_time = rclock::now();
         for (Sprite &sprite : Sprites)
         {
             quadTree.Remove(sprite.QuadId);
             sprite.QuadId = quadTree.Insert(sprite.Id, sprite.BoundingBox);
         }
-        end_time = rclock::now();
-        METRICS.RecordSpriteQuadTreeUpdate(end_time - start_time);
+        // end_time = rclock::now();
+        // METRICS.RecordSpriteQuadTreeUpdate(end_time - start_time);
     }
 
     void Draw(SDL_Renderer *renderer, Mat3 &transform, chrono::milliseconds delta_ms)
     {
-
-        auto start_time = rclock::now();
+        // auto start_time = rclock::now();
         // Draw the quad tree
         quadTree.Draw(renderer, transform, delta_ms);
 
@@ -271,8 +272,8 @@ public:
             }
         }
 
-        auto end_time = rclock::now();
-        METRICS.RecordSceneDraw(end_time - start_time);
+        // auto end_time = rclock::now();
+        // METRICS.RecordSceneDraw(end_time - start_time);
     }
 
     void Clean()

@@ -177,12 +177,24 @@ public:
     void Clean();
 
 protected:
-    void InsertNode(int quadNodeIndex, QuadRect nodeRect, int depth, int elementIndex);
+    struct FindLeavesListData {
+        int quadNodeIndex;
+        QuadRect nodeRect;
+        int depth;
+    };
+
+    void FindLeavesList(int quadNodeIndex,
+                    QuadRect quadNodeRect,
+                    int depth,
+                    Rect &target,
+                    vector<FindLeavesListData>& list);
     void FindLeaves(int quadNodeIndex,
                     QuadRect quadNodeRect,
                     int depth,
                     Rect &target,
                     LeafCallbackFn leafCallbackFn);
+
+    void InsertNode(int quadNodeIndex, QuadRect nodeRect, int depth, int elementIndex);            
     void InsertLeafNode(int quadNodeIndex, QuadRect nodeRect, int depth, int elementIndex);
     bool ShouldSplitNode(QuadNode &node);
 };
