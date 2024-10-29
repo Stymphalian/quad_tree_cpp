@@ -1,5 +1,7 @@
 #pragma once
 
+#include <vector>
+
 /// Provides an indexed free list with constant-time removals from anywhere
 /// in the list without invalidating indices. T must be trivially constructible 
 /// and destructible.

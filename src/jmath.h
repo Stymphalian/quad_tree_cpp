@@ -225,3 +225,53 @@ public:
         return result;
     }
 };
+
+class Rect
+{
+public:
+    // x,y is center of rect, w,h is full width and height
+    int x;
+    int y;
+    int w;
+    int h;
+    Rect() : x(0), y(0), w(0), h(0) {}
+    Rect(int x, int y, int w, int h) : x(x), y(y), w(w), h(h) {}
+    ~Rect() = default;
+
+    Vec2 Center() { return Vec2(x, y); }
+
+    inline int L() const { return (x - (w >> 1)); }
+    inline int R() const { return (x + (w >> 1)); }
+    inline int T() const { return (y + (h >> 1)); }
+    inline int B() const { return (y - (h >> 1)); }
+    inline int Ox() const { return (x); }
+    inline int Oy() const { return (y); }
+    inline int W2() const { return (w >> 1); }
+    inline int H2() const { return (h >> 1); }
+    inline int W4() const { return (w >> 2); }
+    inline int H4() const { return (h >> 2); }
+    inline Rect TR() { return Rect(x + W4(), y + H4(), W2(), H2()); }
+    inline Rect TL() { return Rect(x - W4(), y + H4(), W2(), H2()); }
+    inline Rect BL() { return Rect(x - W4(), y - H4(), W2(), H2()); }
+    inline Rect BR() { return Rect(x + W4(), y - H4(), W2(), H2()); }
+
+    bool Intersects(Rect r)
+    {
+        return (
+            r.L() < R() &&
+            r.R() > L() &&
+            r.T() > B() &&
+            r.B() < T());
+    }
+
+    SDL_Rect ToSDL(Mat3 &transform)
+    {
+        Vec2 p = transform * Vec2(L(), T());
+        SDL_Rect rect;
+        rect.x = (int)p.x;
+        rect.y = (int)p.y;
+        rect.w = w;
+        rect.h = h;
+        return rect;
+    }
+};
