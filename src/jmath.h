@@ -96,6 +96,13 @@ public:
         x = 0;
         y = 0;
     }
+
+    void Clamp(double min, double max) {
+        if (x < min) x = min;
+        if (x > max) x = max;
+        if (y < min) y = min;
+        if (y > max) y = max;
+    }
 };
 
 

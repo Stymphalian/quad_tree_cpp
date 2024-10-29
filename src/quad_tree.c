@@ -2,57 +2,6 @@
 #include "quad_tree.h"
 #include <stdlib.h>
 
-enum
-{
-    // ----------------------------------------------------------------------------------------
-    // Element node fields:
-    // ----------------------------------------------------------------------------------------
-    enode_num = 2,
-
-    // Points to the next element in the leaf node. A value of -1 
-    // indicates the end of the list.
-    enode_idx_next = 0,
-
-    // Stores the element index.
-    enode_idx_elt = 1,
-
-    // ----------------------------------------------------------------------------------------
-    // Element fields:
-    // ----------------------------------------------------------------------------------------
-    elt_num = 5,
-
-    // Stores the rectangle encompassing the element.
-    elt_idx_lft = 0, elt_idx_top = 1, elt_idx_rgt = 2, elt_idx_btm = 3,
-
-    // Stores the ID of the element.
-    elt_idx_id = 4,
-
-    // ----------------------------------------------------------------------------------------
-    // Node fields:
-    // ----------------------------------------------------------------------------------------
-    node_num = 2,
-
-    // Points to the first child if this node is a branch or the first element
-    // if this node is a leaf.
-    node_idx_fc = 0,
-
-    // Stores the number of elements in the node or -1 if it is not a leaf.
-    node_idx_num = 1,
-
-    // ----------------------------------------------------------------------------------------
-    // Node data fields:
-    // ----------------------------------------------------------------------------------------
-    nd_num = 6,
-
-    // Stores the extents of the node using a centered rectangle and half-size.
-    nd_idx_mx = 0, nd_idx_my = 1, nd_idx_sx = 2, nd_idx_sy = 3,
-
-    // Stores the index of the node.
-    nd_idx_index = 4,
-
-    // Stores the depth of the node.
-    nd_idx_depth = 5,
-};
 
 static void node_insert(Quadtree* qt, int index, int depth, int mx, int my, int sx, int sy, int element);
 
