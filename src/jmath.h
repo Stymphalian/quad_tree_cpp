@@ -1,5 +1,6 @@
 #pragma once
 #include <cmath>
+#include "SDL_rect.h"
 
 class Vec2
 {

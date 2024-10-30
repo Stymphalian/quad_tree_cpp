@@ -43,7 +43,7 @@ void QuadTree::Remove(int removeElementIndex)
 
     for (int i = 0; i < output.il_size(); i++)
     {
-        int nd_index = output.il_get(i, 4);
+        const int nd_index = output.GetIndex(i);
 
         int beforeIndex = -1;
         int currentElementNodeIndex = Nodes.GetChildren(nd_index);
@@ -71,90 +71,74 @@ void QuadTree::Remove(int removeElementIndex)
         ElementNodes.il_erase(currentElementNodeIndex);
     }
     Elements.il_erase(removeElementIndex);
-
-    // FindLeaves(
-    //     ROOT_QUAD_NODE_INDEX,
-    //     // Bounds,
-    //     Bounds.mid_x, Bounds.mid_y, Bounds.half_w, Bounds.half_h,
-    //     depth,
-    //     removeElementIndex,
-    //     [this, removeElementIndex](int quadNodeIndex, int mid_x, int mid_y, int half_w, int half_h, int depth)
-    //     {
-    //         int beforeIndex = -1;
-    //         int currentElementNodeIndex = Nodes.GetChildren(quadNodeIndex);
-    //         while (currentElementNodeIndex != -1)
-    //         {
-    //             int elementIndex = ElementNodes.GetElementId(currentElementNodeIndex);
-    //             int next = ElementNodes.GetNext(currentElementNodeIndex);
-
-    //             if (removeElementIndex == elementIndex)
-    //             {
-    //                 break;
-    //             }
-    //             beforeIndex = currentElementNodeIndex;
-    //             currentElementNodeIndex = next;
-    //         }
-
-    //         Nodes.SetCount(quadNodeIndex, Nodes.GetCount(quadNodeIndex) - 1);
-    //         if (beforeIndex == -1)
-    //         {
-    //             Nodes.SetChildren(quadNodeIndex, ElementNodes.GetNext(currentElementNodeIndex));
-    //         }
-    //         else
-    //         {
-    //             ElementNodes.SetNext(beforeIndex, ElementNodes.GetNext(currentElementNodeIndex));
-    //         }
-    //         ElementNodes.il_erase(currentElementNodeIndex);
-    //     });
-
-    // Elements.il_erase(removeElementIndex);
 }
 
-// void QuadTree::Query(Rect &queryRect, LeafCallbackWithTreeFn callback)
-// {
-//     int depth = 0;
-//     FindLeaves(
-//         ROOT_QUAD_NODE_INDEX,
-//         Bounds,
-//         depth,
-//         queryRect,
-//         [this, callback](int quadNodeIndex, Rect nodeRect, int depth)
-//         {
-//             callback(this, quadNodeIndex, nodeRect, depth);
-//         });
-// }
-
-// template <typename T>
-// void QuadTree::QueryWithData(
-//     Rect &queryRect,
-//     std::function<T *(int id)> getDataFn,
-//     std::function<void(T *data)> useDataFn)
-// {
-//     int depth = 0;
-//     FindLeaves(
-//         ROOT_QUAD_NODE_INDEX,
-//         Bounds,
-//         depth,
-//         queryRect,
-//         [this, getDataFn, useDataFn](int quadNodeIndex, Rect nodeRect, int depth)
-//         {
-//             QuadNode &node = Nodes[quadNodeIndex];
-
-//             int elementNodeIndex = node.children;
-//             while (elementNodeIndex != -1)
-//             {
-//                 QuadElementNode &en = ElementNodes[elementNodeIndex];
-//                 QuadElement &element = Elements[en.element];
-//                 T *data = getDataFn(element.id);
-//                 useDataFn(data);
-//                 elementNodeIndex = en.next;
-//             }
-//         });
-// }
-
-void QuadTree::Draw(SDL_Renderer *renderer, Mat3 &transform, chrono::milliseconds delta_ms)
+void QuadTree::Query(Rect query, unordered_map<int, bool>& seen, vector<int> *output)
 {
-    // TODO: Draw the quadtree
+    const int left = query.L();
+    const int top = query.T();
+    const int right = query.R();
+    const int bottom = query.B();
+
+    LeavesListIntList leaves;
+    FindLeavesList(
+        ROOT_QUAD_NODE_INDEX,
+        Bounds.mid_x, Bounds.mid_y, Bounds.half_w, Bounds.half_h,
+        0,
+        left, top, right, bottom,
+        leaves);
+
+    for (int i = 0; i < leaves.il_size(); i++)
+    {
+        const int nd_index = leaves.GetIndex(i);
+
+        int elementNodeIndex = Nodes.GetChildren(nd_index);
+        while (elementNodeIndex != -1)
+        {
+            int elementIndex = ElementNodes.GetElementId(elementNodeIndex);
+            elementNodeIndex = ElementNodes.GetNext(elementNodeIndex);
+            if (seen.find(elementIndex) != seen.end())
+            {
+                continue;
+            }
+
+            Rect elementRect = Elements.GetRect(elementIndex);
+            if (query.Intersects(elementRect))
+            {
+                output->push_back(elementIndex);
+            }
+            seen[elementIndex] = true;
+        }
+    }
+}
+
+void QuadTree::Traverse(void *userData, QueryCallback branchCallback, QueryCallback leafCallback)
+{
+    vector<tuple<int, Rect, int>> stack;
+    stack.push_back(make_tuple(ROOT_QUAD_NODE_INDEX, Bounds.ToRect(), 0));
+    while(stack.size() > 0) {
+        auto [nd_index, rect, depth] = stack.back();
+        stack.pop_back();
+
+        if (Nodes.IsLeaf(nd_index)) {
+            if (leafCallback != nullptr) {
+                leafCallback(userData, this, nd_index, rect, depth);
+            }
+        } else {
+            if (branchCallback != nullptr) {
+                branchCallback(userData, this, nd_index, rect, depth);
+            }
+            const int child = Nodes.GetChildren(nd_index);
+            stack.push_back(make_tuple(child + 0, rect.TL(), depth + 1));
+            stack.push_back(make_tuple(child + 1, rect.TR(), depth + 1));
+            stack.push_back(make_tuple(child + 2, rect.BL(), depth + 1));
+            stack.push_back(make_tuple(child + 3, rect.BR(), depth + 1));
+        }
+    }
+}
+
+void QuadTree::Draw(SDL_Renderer *renderer, Mat3 &transform, chrono::milliseconds delta_ms, bool render_rects)
+{
     vector<tuple<int, QuadRect, int>> nodes;
     nodes.push_back(make_tuple(ROOT_QUAD_NODE_INDEX, this->Bounds, 0));
     while (nodes.size() > 0)
@@ -172,6 +156,10 @@ void QuadTree::Draw(SDL_Renderer *renderer, Mat3 &transform, chrono::millisecond
                 SDL_RenderDrawRect(renderer, &rect);
             }
 
+            if (!render_rects)
+            {
+                continue;
+            }
             int elementNodeIndex = Nodes.GetChildren(currentIndex);
             while (elementNodeIndex != -1)
             {
@@ -191,7 +179,6 @@ void QuadTree::Draw(SDL_Renderer *renderer, Mat3 &transform, chrono::millisecond
                 SDL_RenderDrawRect(renderer, &rect);
 
                 elementNodeIndex = ElementNodes.GetNext(elementNodeIndex);
-                ;
             }
         }
         else if (Nodes.IsBranch(currentIndex))
@@ -223,7 +210,6 @@ void QuadTree::Clean()
     {
         return;
     }
-    // auto start_time = rclock::now();
 
     vector<int> to_process;
     to_process.reserve(64);
@@ -235,12 +221,10 @@ void QuadTree::Clean()
 
         // Loop through all the children.
         // count the number of leaves and insert any branch nodes to process
-        // bool all_leaves = true;
         int empty_child_leaf_count = 0;
         int child = Nodes.GetChildren(currentIndex);
         for (int i = 0; i < 4; i++)
         {
-            // QuadNode &childNode = Nodes[i];
             if (Nodes.IsBranch(child + i))
             {
                 to_process.push_back(child + i);
@@ -263,8 +247,6 @@ void QuadTree::Clean()
             Nodes.AddLeaf();
         }
     }
-    // auto end_time = rclock::now();
-    // METRICS.RecordQuadClean(end_time - start_time);
 }
 
 void QuadTree::InsertNode(int quadNodeIndex, int mid_x, int mid_y, int half_w, int half_h, int depth, int elementIndex)
@@ -280,18 +262,19 @@ void QuadTree::InsertNode(int quadNodeIndex, int mid_x, int mid_y, int half_w, i
         depth,
         left, top, right, bottom,
         output);
+
     for (int i = 0; i < output.il_size(); i++)
     {
-        int nd_mx = output.il_get(i, 0);
-        int nd_my = output.il_get(i, 1);
-        int nd_sx = output.il_get(i, 2);
-        int nd_sy = output.il_get(i, 3);
-        int nd_index = output.il_get(i, 4);
-        int nd_depth = output.il_get(i, 5);
-
+        const int nd_mx = output.GetMx(i);
+        const int nd_my = output.GetMy(i);
+        const int nd_sx = output.GetSx(i);
+        const int nd_sy = output.GetSy(i);
+        const int nd_index = output.GetIndex(i);
+        const int nd_depth = output.GetDepth(i);
         InsertLeafNode(
             nd_index,
-            nd_mx, nd_my, nd_sx, nd_sy, nd_depth,
+            nd_mx, nd_my, nd_sx, nd_sy,
+            nd_depth,
             elementIndex);
     }
 }
@@ -301,23 +284,13 @@ void QuadTree::FindLeavesList(
     int mid_x, int mid_y, int half_w, int half_h,
     int depth,
     int left, int top, int right, int bottom,
-    // int elementIndex,
     LeavesListIntList &output)
 {
-    // vector<tuple<int, QuadRect, int>> stack;
-    // stack.push_back(make_tuple(quadNodeIndex, quadNodeRect, depth));
-    // const int left = Elements.GetLeft(elementIndex);
-    // const int top = Elements.GetTop(elementIndex);
-    // const int right = Elements.GetRight(elementIndex);
-    // const int bottom = Elements.GetBottom(elementIndex);
-
     LeavesListIntList stack;
     stack.Add(quadNodeIndex, depth, mid_x, mid_y, half_w, half_h);
 
     while (stack.il_size() > 0)
     {
-        // auto [currentIndex, rect, depth] = stack.back();
-        // stack.pop_back();
         const int stack_index = stack.il_size() - 1;
         const int nd_mx = stack.GetMx(stack_index);
         const int nd_my = stack.GetMy(stack_index);
@@ -329,19 +302,11 @@ void QuadTree::FindLeavesList(
 
         if (Nodes.IsLeaf(currentIndex))
         {
-            // leafCallbackFn(currentIndex, QuadRect(nd_mx, nd_my, nd_sx, nd_sy), depth);
-            // leafCallbackFn(currentIndex, nd_mx, nd_my, nd_sx, nd_sy, depth);
             output.Add(currentIndex, depth, nd_mx, nd_my, nd_sx, nd_sy);
         }
         else
         {
             const int child = Nodes.GetChildren(currentIndex);
-            // const int w4 = rect.half_w >> 1;
-            // const int h4 = rect.half_h >> 1;
-            // const int l = rect.mid_x - w4;
-            // const int r = rect.mid_x + w4;
-            // const int t = rect.mid_y + h4;
-            // const int b = rect.mid_y - h4;
             const int w4 = nd_sx >> 1;
             const int h4 = nd_sy >> 1;
             const int l = nd_mx - w4;
@@ -353,12 +318,10 @@ void QuadTree::FindLeavesList(
             {
                 if (left <= nd_mx) // TL
                 {
-                    // stack.push_back(make_tuple(child + 0, QuadRect(l, t, w4, h4), depth + 1));
                     stack.Add(child + 0, depth + 1, l, t, w4, h4);
                 }
                 if (right > nd_mx) // TR
                 {
-                    // stack.push_back(make_tuple(child + 1, QuadRect(r, t, w4, h4), depth + 1));
                     stack.Add(child + 1, depth + 1, r, t, w4, h4);
                 }
             }
@@ -366,12 +329,10 @@ void QuadTree::FindLeavesList(
             {
                 if (left <= nd_mx) // BL
                 {
-                    // stack.push_back(make_tuple(child + 2, QuadRect(l, b, w4, h4), depth + 1));
                     stack.Add(child + 2, depth + 1, l, b, w4, h4);
                 }
                 if (right > nd_mx) // BR
                 {
-                    // stack.push_back(make_tuple(child + 3, QuadRect(r, b, w4, h4), depth + 1));
                     stack.Add(child + 3, depth + 1, r, b, w4, h4);
                 }
             }
@@ -390,23 +351,18 @@ void QuadTree::InsertLeafNode(int quadNodeIndex, int mid_x, int mid_y, int half_
     Nodes.SetChildren(quadNodeIndex, elementNodeIndex);
     Nodes.SetCount(quadNodeIndex, currentCount + 1);
 
-    if ((currentCount +1) >= split_threshold && depth < this->max_depth)
+    if ((currentCount + 1) >= split_threshold && depth < this->max_depth)
     {
         // Save the list of elementNodes
-        // vector<int> tempElementIndices;
-        // TODO: Need to make this variable...
-        int tempElementIndices[8];
-        int ti = 0;
+        vector<int> tempElementIndices;
+        tempElementIndices.reserve(8);
 
-        // int tempIndex = Nodes.GetChildren(quadNodeIndex);
         int tempIndex = elementNodeIndex;
         while (tempIndex != -1)
         {
-            // QuadElementNode &en = ElementNodes[tempIndex];
             int next = ElementNodes.GetNext(tempIndex);
             int saveElementId = ElementNodes.GetElementId(tempIndex);
-            // tempElementIndices.push_back(saveElementId);
-            tempElementIndices[ti++] = saveElementId;
+            tempElementIndices.push_back(saveElementId);
             ElementNodes.il_erase(tempIndex);
             tempIndex = next;
         }
@@ -419,11 +375,9 @@ void QuadTree::InsertLeafNode(int quadNodeIndex, int mid_x, int mid_y, int half_
         Nodes.MakeBranch(quadNodeIndex, tl_index);
 
         // Insert the current node's Elements into the new quad nodes
-        // for (auto tempElementIndex : tempElementIndices)
-        for (int j = 0; j < ti; j++)
+        for (auto tempElementIndex : tempElementIndices)
         {
-            // InsertNode(quadNodeIndex, mid_x, mid_y, half_w, half_h, depth, tempElementIndex);
-            InsertNode(quadNodeIndex, mid_x, mid_y, half_w, half_h, depth, tempElementIndices[j]);
+            InsertNode(quadNodeIndex, mid_x, mid_y, half_w, half_h, depth, tempElementIndex);
         }
     }
 }

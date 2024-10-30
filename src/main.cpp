@@ -21,7 +21,7 @@
 #include "consts.h"
 #include "metrics.h"
 #include "jquad.h"
-#include "scene.hpp"
+#include "scene.h"
 
 using namespace std;
 typedef std::chrono::high_resolution_clock rclock;
