@@ -124,25 +124,26 @@ public:
     }
 };
 
-
 class Scene
 {
 public:
     QuadTree quadTree;
     vector<Sprite> Sprites;
     Rect WorldBox;
-    int cf;
 
     bool draw_quad_tree_rects = false;
     bool draw_sprite_rects = true;
 
-    unordered_map<int, bool> sprites_processed;
-
-    ~Scene(){}
+    Scene(Rect BB) : WorldBox(BB),
+                     quadTree(BB, MAX_QUAD_TREE_DEPTH, QUAD_TREE_SPLIT_THRESHOLD)
+    {
+    }
+    ~Scene()
+    {
+    }
 
     void Build()
     {
-        quadTree = QuadTree(WorldBox, MAX_QUAD_TREE_DEPTH, QUAD_TREE_SPLIT_THRESHOLD);
         for (Sprite &sprite : Sprites)
         {
             int quadId = quadTree.Insert(sprite.Id, sprite.BoundingBox);

@@ -34,7 +34,7 @@ public:
     Rect WorldBox;
     Scene scene;
 
-    Game()
+    Game(): width(WORLD_WIDTH), height(WORLD_HEIGHT), WorldBox(0, 0, width, height), scene(WorldBox)
     {
         // Initialize random seed
         srand(1250);
@@ -43,16 +43,14 @@ public:
         printf("Max Depth = %d\n", MAX_QUAD_TREE_DEPTH);
         printf("Max Rect Size = %d\n", MAX_RECT_SIZE);
 
-        width = WORLD_WIDTH;
-        height = WORLD_HEIGHT;
-        WorldBox = Rect(0, 0, width, height);
-
         // Create the scene
-        scene.WorldBox = WorldBox;
+        scene.Sprites.reserve(NUMBER_SPRITES);
         for (int i = 0; i < NUMBER_SPRITES; ++i)
         {
             float posX = (float)(rand() % WorldBox.W2()) - WorldBox.W4();
             float posY = (float)(rand() % WorldBox.H2()) - WorldBox.H4();
+            // float posX = (float)(rand() % WorldBox.W2()) + (WorldBox.W4() >>1);
+            // float posY = (float)(rand() % WorldBox.W2()) + (WorldBox.H4() >>1);
             float velX = (float)((rand() % 1000) / 1000.0) * MAX_SPRITE_VELOCITY - MAX_SPRITE_VELOCITY / 2;
             float velY = (float)((rand() % 1000) / 1000.0) * MAX_SPRITE_VELOCITY - MAX_SPRITE_VELOCITY / 2;
             int w = MIN_RECT_SIZE + (rand() % MAX_RECT_SIZE);
@@ -117,7 +115,8 @@ int main(int argc, char *argv[])
     auto start = rclock::now();
 
     Mat3 transform;
-    transform = Mat3::Scale(1, -1) * Mat3::Translate(VIEWPORT_WIDTH / 2, VIEWPORT_HEIGHT / 2);
+    // transform = Mat3::Scale(1, -1) * Mat3::Translate(-WORLD_WIDTH/2, WORLD_HEIGHT/2);
+    transform = Mat3::Scale(1, -1) * Mat3::Translate(VIEWPORT_WIDTH/2, VIEWPORT_HEIGHT/2);
 
     auto game_start_time = rclock::now();
 
@@ -197,8 +196,14 @@ int main(int argc, char *argv[])
         game.Draw(renderer, transform, delta_ms);
 
         // Draw origin
-        Vec2 origin = transform * Vec2(0, 0);
+        Vec2 origin = transform * Vec2(WORLD_WIDTH/2, WORLD_HEIGHT/2);
         SDL_SetRenderDrawColor(renderer, 255, 0, 0, SDL_ALPHA_OPAQUE);
+        SDL_Rect rr;
+        rr.x = (int)origin.x;
+        rr.y =  (int)origin.y;
+        rr.w = 100;
+        rr.h = 100;
+        SDL_RenderDrawRect(renderer, &rr);
         SDL_RenderDrawPoint(renderer, (int)origin.x, (int)origin.y);
 
         SDL_RenderPresent(renderer);
