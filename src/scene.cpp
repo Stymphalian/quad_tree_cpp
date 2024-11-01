@@ -1,105 +1,101 @@
 #include "scene.h"
 
-#include <stdlib.h>
-#include <stdio.h>
-#include <limits.h>
-#include <cstdio>
-#include <vector>
-#include <cstdlib>
-#include <ctime>
-#include <functional>
-#include <string>
-#include <chrono>
-#include <iostream>
-#include <tuple>
-#include <cassert>
-#include <SDL_render.h>
-
 #include "jmath.h"
 #include "jquad.h"
-#include "metrics.h"
 #include "consts.h"
 
-Scene::Scene(Rect BB) : WorldBox(BB),
-                        quadTree(BB, MAX_QUAD_TREE_DEPTH, QUAD_TREE_SPLIT_THRESHOLD)
-{
-}
-Scene::~Scene()
-{
-}
+Scene::Scene(Rect BB)
+    : _WorldBox(BB),
+      _QuadTree(
+          BB,
+          g_Settings.MaxQuadTreeDepth,
+          g_Settings.QuadTreeSplitThreshold) {}
+Scene::~Scene() {}
 
 void Scene::Build()
 {
-    for (Sprite &sprite : Sprites)
+    for (Sprite &sprite : _Sprites)
     {
-        int quadId = quadTree.Insert(sprite.Id, sprite.BoundingBox);
-        sprite.QuadId = quadId;
+        sprite._QuadId = _QuadTree.Insert(sprite._Id, sprite._BoundingBox);
     }
 }
 
-
-struct QuadCollisionUserData {
-    unordered_map<int, bool> seen;
-    unordered_map<int, bool> spritesProcessed;
-    Scene* scene;
-};
-void Scene::QuadCollision()
+struct QuadCollisionUserData
 {
-    QuadTree::QueryCallback callback = [](
-                                           void *user_data,
-                                           QuadTree *tree,
-                                           int nodeIndex,
-                                           Rect nodeRect,
-                                           int depth)
+    unordered_map<int, bool> seen;
+    vector<bool> spritesProcessed;
+    vector<pair<int, int>> collisionPairs;
+    Scene *scene;
+};
+
+void quadCollissionLeafCallback(
+    void *userData,
+    QuadTree *tree,
+    int nodeIndex,
+    Rect nodeRect,
+    int depth)
+{
+    QuadCollisionUserData *data = (QuadCollisionUserData *)userData;
+    Scene *scene = data->scene;
+    unordered_map<int, bool> &seen = data->seen;
+    vector<bool> &traversed = data->spritesProcessed;
+    vector<pair<int, int>> &collissionPairs = data->collisionPairs;
+
+    vector<int> intersectingElements;
+    int elementNodeIndex = tree->_Nodes.GetChildren(nodeIndex);
+    // Process every element in this node
+    while (elementNodeIndex != -1)
     {
-        QuadCollisionUserData *data = (QuadCollisionUserData*)user_data;
-        Scene *scene = data->scene;
-        unordered_map<int, bool> &seen = data->seen;
-        unordered_map<int, bool> &traversed = data->spritesProcessed;
+        const int elementIndex = tree->_ElementNodes.GetElementId(elementNodeIndex);
+        elementNodeIndex = tree->_ElementNodes.GetNext(elementNodeIndex);
 
-        vector<int> intersectingElements;
-        int elementNodeIndex = tree->Nodes.GetChildren(nodeIndex);
-        // Process every element in this node
-        while (elementNodeIndex != -1)
+        // If we have already processed this element then we can skip early.
+        // This can happen from processing in a separate leaf node
+        if (traversed[elementIndex])
         {
-            const int elementIndex = tree->ElementNodes.GetElementId(elementNodeIndex);
-            elementNodeIndex = tree->ElementNodes.GetNext(elementNodeIndex);
+            continue;
+        }
 
-            // If we have already processed this element (from processing 
-            // a separate leaf node), then we can skip early.
-            if (traversed.find(elementIndex) != traversed.end())
-            {   
+        const Rect queryRect = std::move(tree->_Elements.GetRect(elementIndex));
+        traversed[elementIndex] = true;
+
+        seen.clear();
+        intersectingElements.clear();
+        seen[elementIndex] = true;
+        tree->Query(queryRect, seen, &intersectingElements);
+
+        const int A_spriteId = tree->_Elements.GetId(elementIndex);
+        for (int otherElementId : intersectingElements)
+        {
+            const int B_spriteId = tree->_Elements.GetId(otherElementId);
+            if (traversed[otherElementId])
+            {
                 continue;
             }
-
-            const int A_spriteId = tree->Elements.GetId(elementIndex);
-            Sprite* A = &(scene->Sprites[A_spriteId]);
-            traversed[elementIndex] = true;
-
-            seen.clear();
-            intersectingElements.clear();
-            seen[elementIndex] = true;
-            tree->Query(A->BoundingBox, seen, &intersectingElements);
-
-            for (int otherElementId: intersectingElements)
-            {
-                const int B_spriteId = tree->Elements.GetId(otherElementId);
-                Sprite* B = &(scene->Sprites[B_spriteId]);
-                assert(A->Id != B->Id);
-
-                if (traversed.find(otherElementId) != traversed.end())
-                {
-                    continue;
-                }                
-                A->Collides(B);
-                A->IsColliding = true;
-            }
+            collissionPairs.emplace_back(A_spriteId, B_spriteId);
         }
-    };
+    }
+};
 
+void Scene::QuadCollision()
+{
     QuadCollisionUserData data;
     data.scene = this;
-    // quadTree.Traverse((void*)(&data), nullptr, callback);
+    // TODO: Remove this magic number.
+    data.collisionPairs.reserve(4096);
+    data.spritesProcessed.resize(g_Settings.NumberSprites, false);
+    _QuadTree.Traverse((void *)(&data), nullptr, quadCollissionLeafCallback);
+
+    Sprite *A = nullptr;
+    Sprite *B = nullptr;
+    for (auto [AId, BId] : data.collisionPairs)
+    {
+        A = &_Sprites[AId];
+        B = &_Sprites[BId];
+        A->Collides(B);
+        A->_IsColliding = true;
+        B->_IsColliding = true;
+    }
 }
 
 void Scene::BruteCollision()
@@ -107,31 +103,30 @@ void Scene::BruteCollision()
     // Run collision logic
     Sprite *A = nullptr;
     Sprite *B = nullptr;
-    for (int i = 0; i < Sprites.size(); i++)
+    for (int i = 0; i < _Sprites.size(); i++)
     {
-        A = &Sprites[i];
-        for (int j = i + 1; j < Sprites.size(); j++)
+        A = &_Sprites[i];
+        for (int j = i + 1; j < _Sprites.size(); j++)
         {
-            // if ( i == j) {continue;}
-            B = &Sprites[j];
+            B = &_Sprites[j];
             if (A->Intersects(B) && B->Intersects(A))
             {
-                A->IsColliding = true;
-                B->IsColliding = true;
-                Sprites[i].Collides(&Sprites[j]);
+                A->_IsColliding = true;
+                B->_IsColliding = true;
+                _Sprites[i].Collides(&_Sprites[j]);
             }
         }
     }
 }
 
-void Scene::Update(chrono::milliseconds delta_ms)
+void Scene::Update(chrono::milliseconds deltaMs)
 {
-    for (Sprite &sprite : Sprites)
+    for (Sprite &sprite : _Sprites)
     {
-        sprite.IsColliding = false;
+        sprite._IsColliding = false;
     }
 
-    if (USE_QUAD_TREE)
+    if (g_Settings.UseQuadTree)
     {
         QuadCollision();
     }
@@ -141,33 +136,28 @@ void Scene::Update(chrono::milliseconds delta_ms)
     }
 
     // update physics
-    for (Sprite &sprite : Sprites)
+    for (Sprite &sprite : _Sprites)
     {
-        sprite.Update(WorldBox, delta_ms);
-        quadTree.Remove(sprite.QuadId);
-        sprite.QuadId = quadTree.Insert(sprite.Id, sprite.BoundingBox);
+        sprite.Update(_WorldBox, deltaMs);
+        _QuadTree.Remove(sprite._QuadId);
+        sprite._QuadId = _QuadTree.Insert(sprite._Id, sprite._BoundingBox);
     }
 }
 
-void Scene::Draw(SDL_Renderer *renderer, Mat3 &transform, chrono::milliseconds delta_ms)
+void Scene::Draw(SDL_Renderer *renderer, Mat3 &transform, chrono::milliseconds deltaMs)
 {
-    // auto start_time = rclock::now();
-    // Draw the quad tree
-    quadTree.Draw(renderer, transform, delta_ms, draw_quad_tree_rects);
+    _QuadTree.Draw(renderer, transform, deltaMs, _DrawQuadTreeRects);
 
-    if (draw_sprite_rects)
+    if (_DrawSpriteRects)
     {
-        for (Sprite &sprite : Sprites)
+        for (Sprite &sprite : _Sprites)
         {
-            sprite.Draw(renderer, transform, delta_ms);
+            sprite.Draw(renderer, transform, deltaMs);
         }
     }
-
-    // auto end_time = rclock::now();
-    // METRICS.RecordSceneDraw(end_time - start_time);
 }
 
 void Scene::Clean()
 {
-    quadTree.Clean();
+    _QuadTree.Clean();
 }

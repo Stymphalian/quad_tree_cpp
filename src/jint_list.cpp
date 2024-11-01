@@ -1,7 +1,8 @@
-#include "jint_list.h"
 #include <stdlib.h>
 #include <string.h>
 #include <assert.h>
+
+#include "jint_list.h"
 
 JIntList::JIntList(int num_fields)
 {
@@ -19,30 +20,30 @@ JIntList::~JIntList()
         free(this->data);
 }
 
-void JIntList::il_clear()
+void JIntList::clear()
 {
     this->num = 0;
     this->free_element = -1;
 }
 
-int JIntList::il_size()
+int JIntList::size()
 {
     return this->num;
 }
 
-int JIntList::il_get(int n, int field)
+int JIntList::get(int n, int field)
 {
     assert(n >= 0 && n < this->num);
     return this->data[n*this->num_fields + field];
 }
 
-void JIntList::il_set(int n, int field, int val)
+void JIntList::set(int n, int field, int val)
 {
     assert(n >= 0 && n < this->num);
     this->data[n*this->num_fields + field] = val;
 }
 
-int JIntList::il_push_back()
+int JIntList::push_back()
 {
     const int new_pos = (this->num+1) * this->num_fields;
 
@@ -71,14 +72,14 @@ int JIntList::il_push_back()
     return this->num++;
 }
 
-void JIntList::il_pop_back()
+void JIntList::pop_back()
 {
     // Just decrement the list size.
     assert(this->num > 0);
     --this->num;
 }
 
-int JIntList::il_insert()
+int JIntList::insert()
 {
     // If there's a free index in the free list, pop that and use it.
     if (this->free_element != -1)
@@ -93,10 +94,10 @@ int JIntList::il_insert()
         return index;
     }
     // Otherwise insert to the back of the array.
-    return il_push_back();
+    return push_back();
 }
 
-void JIntList::il_erase(int n)
+void JIntList::erase(int n)
 {
     // Push the element to the free list.
     const int pos = n * this->num_fields;

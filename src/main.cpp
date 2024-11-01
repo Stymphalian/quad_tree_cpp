@@ -1,25 +1,8 @@
-
-#include <stdlib.h>
-#include <stdio.h>
-#include <limits.h>
-#include <cstdio>
-#include <vector>
-#include <cstdlib>
-#include <ctime>
-#include <functional>
-#include <string>
-#include <chrono>
-#include <iostream>
-#include <tuple>
-#include <cassert>
-
 #define SDL_MAIN_HANDLED
 #include "SDL.h"
 
-#include "free_list.hpp"
 #include "jmath.h"
 #include "consts.h"
-#include "metrics.h"
 #include "jquad.h"
 #include "scene.h"
 
@@ -29,55 +12,60 @@ typedef std::chrono::high_resolution_clock rclock;
 class Game
 {
 public:
-    int width;
-    int height;
-    Rect WorldBox;
-    Scene scene;
+    int _width;
+    int _height;
+    Rect _WorldBox;
+    Scene _Scene;
 
-    Game(): width(WORLD_WIDTH), height(WORLD_HEIGHT), WorldBox(0, 0, width, height), scene(WorldBox)
+public:
+    Game(int width, int height)
+        : _width(width),
+          _height(height),
+          _WorldBox(0, 0, width, height),
+          _Scene(_WorldBox)
     {
         // Initialize random seed
         srand(1250);
 
-        printf("World Width = %d, World Height = %d\n", WORLD_WIDTH, WORLD_HEIGHT);
-        printf("Max Depth = %d\n", MAX_QUAD_TREE_DEPTH);
-        printf("Max Rect Size = %d\n", MAX_RECT_SIZE);
+        printf("World Width = %d, World Height = %d\n", width, height);
+        printf("Max Depth = %d\n", g_Settings.MaxQuadTreeDepth);
+        printf("Max Rect Size = %d\n", g_Settings.MaxRectSize);
 
         // Create the scene
-        scene.Sprites.reserve(NUMBER_SPRITES);
-        for (int i = 0; i < NUMBER_SPRITES; ++i)
+        const int numberSprites = g_Settings.NumberSprites;
+        const int maxSpritVelocity = g_Settings.MaxSpriteVelocity;
+        _Scene._Sprites.reserve(numberSprites);
+        for (int i = 0; i < numberSprites; ++i)
         {
-            float posX = (float)(rand() % WorldBox.W2()) - WorldBox.W4();
-            float posY = (float)(rand() % WorldBox.H2()) - WorldBox.H4();
-            // float posX = (float)(rand() % WorldBox.W2()) + (WorldBox.W4() >>1);
-            // float posY = (float)(rand() % WorldBox.W2()) + (WorldBox.H4() >>1);
-            float velX = (float)((rand() % 1000) / 1000.0) * MAX_SPRITE_VELOCITY - MAX_SPRITE_VELOCITY / 2;
-            float velY = (float)((rand() % 1000) / 1000.0) * MAX_SPRITE_VELOCITY - MAX_SPRITE_VELOCITY / 2;
-            int w = MIN_RECT_SIZE + (rand() % MAX_RECT_SIZE);
-            // int h = MIN_RECT_SIZE + (rand() % MAX_RECT_SIZE);
+            float posX = (float)(rand() % _WorldBox.W2()) - _WorldBox.W4();
+            float posY = (float)(rand() % _WorldBox.H2()) - _WorldBox.H4();
+            float velX = (float)((rand() % 1000) / 1000.0) * maxSpritVelocity - maxSpritVelocity / 2;
+            float velY = (float)((rand() % 1000) / 1000.0) * maxSpritVelocity - maxSpritVelocity / 2;
+            int w = g_Settings.MinRectSize + (rand() % g_Settings.MaxRectSize);
+            // int h = g_Settings.MinRectSize + (rand() % g_Settings.MaxRectSize);
             int h = w;
 
             Rect bounds = Rect((int)posX, (int)posY, w, h);
-            scene.Sprites.push_back(
-                Sprite(i,
-                       Vec2(posX, posY),
-                       Vec2(velX, velY),
-                       bounds));
+            _Scene._Sprites.emplace_back(
+                i,
+                Vec2(posX, posY),
+                Vec2(velX, velY),
+                bounds);
         }
-        scene.Build();
+        _Scene.Build();
     }
 
     ~Game() = default;
 
-    void UpdatePhysics(chrono::milliseconds delta_ms)
+    void UpdatePhysics(chrono::milliseconds deltaMs)
     {
-        scene.Update(delta_ms);
+        _Scene.Update(deltaMs);
     }
 
-    void Draw(SDL_Renderer *renderer, Mat3 &transform, chrono::milliseconds delta_ms)
+    void Draw(SDL_Renderer *renderer, Mat3 &transform, chrono::milliseconds deltaMs)
     {
-        scene.Draw(renderer, transform, delta_ms);
-        scene.Clean();
+        _Scene.Draw(renderer, transform, deltaMs);
+        _Scene.Clean();
     }
 };
 
@@ -93,8 +81,8 @@ int main(int argc, char *argv[])
         "Quad Trees",
         SDL_WINDOWPOS_UNDEFINED,
         SDL_WINDOWPOS_UNDEFINED,
-        VIEWPORT_WIDTH,
-        VIEWPORT_HEIGHT,
+        g_Settings.ViewportWidth,
+        g_Settings.ViewportHeight,
         0);
     if (!window)
     {
@@ -109,22 +97,21 @@ int main(int argc, char *argv[])
         return 1;
     }
 
-    Game game;
+    Game game(g_Settings.WorldWidth, g_Settings.WorldHeight);
     bool quit = false;
     bool paused = false;
     auto start = rclock::now();
 
     Mat3 transform;
-    // transform = Mat3::Scale(1, -1) * Mat3::Translate(-WORLD_WIDTH/2, WORLD_HEIGHT/2);
-    transform = Mat3::Scale(1, -1) * Mat3::Translate(VIEWPORT_WIDTH/2, VIEWPORT_HEIGHT/2);
+    transform = Mat3::Scale(1, -1) * Mat3::Translate(
+                                         g_Settings.ViewportWidth / 2,
+                                         g_Settings.ViewportHeight / 2);
 
-    auto game_start_time = rclock::now();
-
-    int frame_count = 0;
-    double total_time_sec = 0;
+    int frameCount = 0;
+    double totalTimeSec = 0;
     while (!quit)
     {
-        auto frame_start_time = rclock::now();
+        auto frameStartTime = rclock::now();
 
         SDL_Event e;
         // Handle input
@@ -165,10 +152,10 @@ int main(int argc, char *argv[])
                     paused = !paused;
                     break;
                 case SDLK_f:
-                    game.scene.draw_quad_tree_rects = !game.scene.draw_quad_tree_rects;
+                    game._Scene._DrawQuadTreeRects = !game._Scene._DrawQuadTreeRects;
                     break;
                 case SDLK_r:
-                    game.scene.draw_sprite_rects = !game.scene.draw_sprite_rects;
+                    game._Scene._DrawSpriteRects = !game._Scene._DrawSpriteRects;
                     break;
                 }
             default:
@@ -180,47 +167,43 @@ int main(int argc, char *argv[])
         SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
         SDL_RenderClear(renderer);
         auto now = rclock::now();
-        auto delta_ms = chrono::duration_cast<chrono::milliseconds>(now - start);
+        auto deltaMs = chrono::duration_cast<chrono::milliseconds>(now - start);
 
         // Update Physics
-        if (delta_ms >= chrono::milliseconds(16))
+        if (deltaMs >= chrono::milliseconds(16))
         {
             start = now;
             if (!paused)
             {
-                game.UpdatePhysics(delta_ms);
+                game.UpdatePhysics(deltaMs);
             }
         }
 
         // Draw Stuff
-        game.Draw(renderer, transform, delta_ms);
+        game.Draw(renderer, transform, deltaMs);
 
         // Draw origin
-        Vec2 origin = transform * Vec2(WORLD_WIDTH/2, WORLD_HEIGHT/2);
+        Vec2 origin = transform * Vec2(0, 0);
         SDL_SetRenderDrawColor(renderer, 255, 0, 0, SDL_ALPHA_OPAQUE);
         SDL_Rect rr;
-        rr.x = (int)origin.x;
-        rr.y =  (int)origin.y;
-        rr.w = 100;
-        rr.h = 100;
+        rr.x = (int)origin.x - 5;
+        rr.y = (int)origin.y - 5;
+        rr.w = 10;
+        rr.h = 10;
         SDL_RenderDrawRect(renderer, &rr);
         SDL_RenderDrawPoint(renderer, (int)origin.x, (int)origin.y);
 
         SDL_RenderPresent(renderer);
 
-        auto frame_end_time = rclock::now();
-        auto frame_delta_ms = chrono::duration_cast<chrono::milliseconds>(frame_end_time - frame_start_time);
-        total_time_sec += (frame_delta_ms.count() / 1000.0);
-        frame_count++;
-        if (frame_count % 60 == 0)
+        auto frameEndTime = rclock::now();
+        auto frameDeltaMs = chrono::duration_cast<chrono::milliseconds>(frameEndTime - frameStartTime);
+        totalTimeSec += (frameDeltaMs.count() / 1000.0);
+        frameCount++;
+        if (frameCount % 60 == 0)
         {
-            printf("Frame Rate: %.2f fps\n", frame_count / total_time_sec);
+            printf("Frame Rate: %.2f fps\n", frameCount / totalTimeSec);
         }
     }
-
-    auto game_end_time = rclock::now();
-    METRICS.RecordTotalTime(game_end_time - game_start_time);
-    METRICS.Print();
 
     SDL_DestroyRenderer(renderer);
     SDL_DestroyWindow(window);

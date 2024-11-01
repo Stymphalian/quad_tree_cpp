@@ -46,9 +46,6 @@ private:
         FreeElement(T element) : element(element) {}
         FreeElement(int next) : next(next) {}
     };
-    // std::vector<FreeElement> data;
-    // FreeElement data[128];
-    // FreeElement data[128];
     FreeElement *data;
     FreeElement *heap_data = nullptr;
     FreeElement static_data[FIXED_CAPACITY];
@@ -123,7 +120,7 @@ void FreeList<T>::erase(int n)
 template <class T>
 void FreeList<T>::clear()
 {
-    // data.clear();
+    // data.clear()
     size_ = 0;
     first_free = -1;
 }
@@ -132,7 +129,6 @@ template <class T>
 int FreeList<T>::range() const
 {
     return size_;
-    // return static_cast<int>(data.size());
 }
 
 template <class T>

@@ -1,105 +1,113 @@
 #pragma once
 #include <cstdint>
-#include "jmath.h"
-#include "free_list.hpp"
-#include <functional>
 #include <chrono>
+#include <functional>
 #include <SDL_render.h>
 
-#include "metrics.h"
+#include "jmath.h"
 #include "jint_list.h"
 
 using namespace std;
 
 struct QuadRect
 {
-    int mid_x;
-    int mid_y;
-    int half_w;
-    int half_h;
-    QuadRect() : mid_x(0), mid_y(0), half_w(0), half_h(0) {}
-    QuadRect(int mid_x, int mid_y, int half_w, int half_h) : mid_x(mid_x), mid_y(mid_y), half_w(half_w), half_h(half_h) {}
+    int midX;
+    int midY;
+    int halfW;
+    int halfH;
 
-    inline int W4() { return half_w >> 1; }
-    inline int H4() { return half_h >> 1; }
+    QuadRect() : midX(0), midY(0), halfW(0), halfH(0) {}
+    QuadRect(int mid_x, int mid_y, int half_w, int half_h)
+        : midX(mid_x), midY(mid_y), halfW(half_w), halfH(half_h) {}
 
-    inline QuadRect TL() { return QuadRect(mid_x - W4(), mid_y + H4(), W4(), H4()); }
-    inline QuadRect TR() { return QuadRect(mid_x + W4(), mid_y + H4(), W4(), H4()); }
-    inline QuadRect BL() { return QuadRect(mid_x - W4(), mid_y - H4(), W4(), H4()); }
-    inline QuadRect BR() { return QuadRect(mid_x + W4(), mid_y - H4(), W4(), H4()); }
+    inline int W4() { return halfW >> 1; }
+    inline int H4() { return halfH >> 1; }
 
-    Rect ToRect() {
-        return Rect(mid_x , mid_y, half_w << 1, half_h << 1);
+    inline QuadRect TL() { return (QuadRect(midX - W4(), midY + H4(), W4(), H4())); }
+    inline QuadRect TR() { return (QuadRect(midX + W4(), midY + H4(), W4(), H4())); }
+    inline QuadRect BL() { return (QuadRect(midX - W4(), midY - H4(), W4(), H4())); }
+    inline QuadRect BR() { return (QuadRect(midX + W4(), midY - H4(), W4(), H4())); }
+
+    Rect ToRect()
+    {
+        return Rect(midX, midY, halfW << 1, halfH << 1);
     }
 
     SDL_Rect ToSDL(Mat3 &transform)
     {
-        Vec2 p = transform * Vec2(mid_x - half_w, mid_y + half_h);
+        Vec2 p = transform * Vec2(midX - halfW, midY + halfH);
         SDL_Rect rect;
         rect.x = (int)p.x;
         rect.y = (int)p.y;
-        rect.w = half_w << 1;
-        rect.h = half_w << 1;
+        rect.w = halfW << 1;
+        rect.h = halfW << 1;
         return rect;
     }
 };
-
-
-typedef void QtNodeFunc(void* user_data, int node, int depth, int mx, int my, int sx, int sy);
 
 class QuadTree
 {
 public:
     const static int ROOT_QUAD_NODE_INDEX = 0;
-    using QueryCallback = std::function<void(void* user_data, QuadTree* tree, int nodeIndex, Rect nodeRect, int depth)>;
-
-    QuadElementIntList Elements;
-    QuadElementNodeIntList ElementNodes;
-    QuadNodesIntList Nodes;
+    using QueryCallback = void(
+        void *user_data,
+        QuadTree *tree,
+        int nodeIndex,
+        Rect nodeRect,
+        int depth);
 
     // Origin is center, x+ is right, y+ is up
-    QuadRect Bounds;
-    int split_threshold = 3;
-    int max_depth = 25;
+    QuadRect _Bounds;
+    QuadElementIntList _Elements;
+    QuadElementNodeIntList _ElementNodes;
+    QuadNodesIntList _Nodes;
 
-    QuadTree(Rect bounds, int max_depth, int split_threshold);
+private:
+    int _splitThreshold = 3;
+    int _maxDepth = 25;
+
+public:
+    QuadTree(Rect bounds, int maxDepth, int splitThreshold);
     ~QuadTree();
 
     int Insert(int id, Rect &rect);
     void Remove(int elementIndex);
 
     // Returns list of elements which intersect the query rectangle
-    void Query(Rect query, unordered_map<int, bool>& seenElements, vector<int>* output);
+    void Query(Rect query,
+               unordered_map<int, bool> &seenElements,
+               vector<int> *output);
 
     // Traverse through every branch/leaf node in the quad tree
     // Invokes the callbacks in the order of traversal
-    void Traverse(void* userData, QueryCallback branchCallback, QueryCallback leafCallback);
+    void Traverse(void *userData,
+                  QueryCallback branchCallback,
+                  QueryCallback leafCallback);
 
     void Clean();
 
-    void Draw(
-        SDL_Renderer *renderer,
-        Mat3 &transform,
-        chrono::milliseconds delta_ms,
-        bool render_rects
-    );
-    
+    void Draw(SDL_Renderer *renderer,
+              Mat3 &transform,
+              chrono::milliseconds deltaMs,
+              bool renderRects);
 
 protected:
-    void FindLeavesList(
-        int quadNodeIndex,
-        int mid_x, int mid_y, int half_w, int half_h,
-        int depth,
-        int left, int top, int right, int bottom,
-        LeavesListIntList &output);
-    void InsertNode(
-        int quadNodeIndex,
-        int mid_x, int mid_y, int half_w, int half_h,
-        int depth,
-        int elementIndex);
-    void InsertLeafNode(
-        int quadNodeIndex,
-        int mid_x, int mid_y, int half_w, int half_h,
-        int depth,
-        int elementIndex);
+    bool Intersects(int aLeft, int aTop, int aRight, int aBottom,
+                    int bLeft, int bTop, int bRight, int bBottom);
+
+    void FindLeavesList(int quadNodeIndex,
+                        int midX, int midY, int halfW, int halfH,
+                        int depth,
+                        int left, int top, int right, int bottom,
+                        LeavesListIntList &output);
+                        
+    void InsertNode(int quadNodeIndex,
+                    int midX, int midY, int halfW, int halfH,
+                    int depth,
+                    int elementIndex);
+                    
+    void InsertLeafNode(int quadNodeIndex,
+                        int midX, int midY, int halfW, int halfH,
+                        int depth,
+                        int elementIndex);
 };

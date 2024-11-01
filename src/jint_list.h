@@ -40,35 +40,35 @@ public:
     ~JIntList();
 
     // Returns the number of elements in the list.
-    int il_size();
+    int size();
 
     // Returns the value of the specified field for the nth element.
-    int il_get(int n, int field);
+    int get(int n, int field);
 
     // Sets the value of the specified field for the nth element.
-    void il_set(int n, int field, int val);
+    void set(int n, int field, int val);
 
     // Clears the specified list, making it empty.
-    void il_clear();
+    void clear();
 
 
     // ---------------------------------------------------------------------------------
     // Stack Interface (do not mix with free list usage; use one or the other)
     // ---------------------------------------------------------------------------------
     // Inserts an element to the back of the list and returns an index to it.
-    int il_push_back();
+    int push_back();
 
     // Removes the element at the back of the list.
-    void il_pop_back();
+    void pop_back();
 
     // ---------------------------------------------------------------------------------
     // Free List Interface (do not mix with stack usage; use one or the other)
     // ---------------------------------------------------------------------------------
     // Inserts an element to a vacant position in the list and returns an index to it.
-    int il_insert();
+    int insert();
 
     // Removes the nth element in the list.
-    void il_erase(int n);
+    void erase(int n);
 };
 
 
@@ -85,7 +85,7 @@ public:
 
     int AddLeaf()
     {
-        int id = il_insert();
+        int id = insert();
         data[id * num_fields + children] = -1;
         data[id * num_fields + count] = 0;
         return id;
@@ -145,7 +145,7 @@ public:
 
     int Add(int tId, int l, int t, int r, int b)
     {
-        int id = il_insert();
+        int id = insert();
         data[id * num_fields + ID] = tId;
         data[id * num_fields + left] = l;
         data[id * num_fields + top] = t;
@@ -218,7 +218,7 @@ public:
 
     int Add(int elementIndex)
     {
-        int id = il_insert();
+        int id = insert();
         data[id * num_fields + next] = -1;
         data[id * num_fields + elementId] = elementIndex;
         return id;
@@ -259,7 +259,7 @@ public:
 
     int Add(int nd_index1, int nd_depth1, int nd_mx1, int nd_my1, int nd_sx1, int nd_sy1)
     {
-        const int back_idx = il_push_back();
+        const int back_idx = push_back();
         data[back_idx * num_fields + nd_mx] = nd_mx1;
         data[back_idx * num_fields + nd_my] = nd_my1;
         data[back_idx * num_fields + nd_sx] = nd_sx1;

@@ -4,40 +4,19 @@
 // 80 FPS my_implementation
 // 1600 FPS by removing metrics collection
 // 6500 FPS by using int_list (same data structre as quad_tree_c)
-const int WORLD_WIDTH = 100000;
-const int WORLD_HEIGHT = 100000;
-// const int NUMBER_SPRITES = 2000;
-const int NUMBER_SPRITES = 200000;
-const int MAX_SPRITE_VELOCITY = 120;
-const int MIN_RECT_SIZE = 1;
-const int MAX_RECT_SIZE = 50;
-const int MAX_QUAD_TREE_DEPTH = 16;
-const int QUAD_TREE_SPLIT_THRESHOLD = 8;
-const bool USE_QUAD_TREE = true;
-const int VIEWPORT_WIDTH = 400;
-const int VIEWPORT_HEIGHT = 400;
 
-// const int WORLD_WIDTH = 400;
-// const int WORLD_HEIGHT = 400;
-// const int NUMBER_SPRITES = 10;
-// const int MAX_SPRITE_VELOCITY = 500;
-// const int MIN_RECT_SIZE = 5;
-// const int MAX_RECT_SIZE = 50;
-// const int MAX_QUAD_TREE_DEPTH = 4;
-// const int QUAD_TREE_SPLIT_THRESHOLD = 3;
-// const bool USE_QUAD_TREE = true;
-// const int VIEWPORT_WIDTH = 400;
-// const int VIEWPORT_HEIGHT = 400;
+struct GlobalSettings {
+    const int WorldWidth = 10000;
+    const int WorldHeight = 10000;
+    const int NumberSprites = 20000;
+    const int MaxSpriteVelocity = 120;
+    const int MinRectSize = 5;
+    const int MaxRectSize = 10;
+    const int MaxQuadTreeDepth = 16;
+    const int QuadTreeSplitThreshold = 8;
+    const bool UseQuadTree = true;
+    const int ViewportWidth = 400;
+    const int ViewportHeight = 400;
+};
 
-// BENCHMARK SETTINGS
-// const int WORLD_WIDTH = 10000;
-// const int WORLD_HEIGHT = 10000;
-// const int NUMBER_SPRITES = 2000;
-// const int MAX_SPRITE_VELOCITY = 120;
-// const int MIN_RECT_SIZE = 1;
-// const int MAX_RECT_SIZE = 50;
-// const int MAX_QUAD_TREE_DEPTH = 16;
-// const int QUAD_TREE_SPLIT_THRESHOLD = 8;
-// const bool USE_QUAD_TREE = true;
-// const int VIEWPORT_WIDTH = 400;
-// const int VIEWPORT_HEIGHT = 400;
+static const GlobalSettings g_Settings;
